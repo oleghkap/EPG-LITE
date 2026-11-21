@@ -38,10 +38,7 @@ clean_epg.py и trim_epg.py (ни channels_test.txt, ни epg_custom.xml.gz,
      star-rating, country, date, episode-num сохраняются как есть —
      это общая информация о передаче, которую вы попросили не резать.
   6. Обрезает длину <desc> до MAX_DESC_CHARS (сейчас 400 символов).
-  7. Заменяет внутренний id канала epg.one (длинный, повторяется в
-     каждой передаче) на короткий синтетический ("c1", "c2"...) — это
-     не ваш tvg-id и не влияет на матчинг, чисто экономия места.
-  8. Каналы без единой передачи в итоговом окне дат ОСТАЮТСЯ в выводе
+  7. Каналы без единой передачи в итоговом окне дат ОСТАЮТСЯ в выводе
      (как есть сейчас у вас с epg.one) — просто отдельно считаются и
      показываются в статистике и в COVERAGE_FILE, чтобы было видно
      масштаб проблемы, без выбрасывания таких каналов.
@@ -90,13 +87,6 @@ MAX_DESC_CHARS = 400
 REMOVED_CHANNEL_TAGS = {
     "icon",
 }
-
-# Короткие синтетические channel-id вместо длинных внутренних id epg.one.
-# Экономия: оригинальный id повторяется в КАЖДОЙ передаче каждого канала
-# (десятки раз за 3 дня), короткий id "c1", "c2"... заметно меньше.
-# На матчинг по вашему tvg-id это не влияет — подмена чисто техническая,
-# происходит только при записи итогового файла.
-SHORT_CHANNEL_ID_PREFIX = "c"
 
 MOSCOW = ZoneInfo("Europe/Moscow")
 
@@ -808,7 +798,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
     matched_reference_titles = set()
     channel_id_to_titles = {}
     channels_with_kept_programme = set()
-    short_channel_ids = {}
     removed_channel_logos = 0
 
     # Диагностика: сколько МБ занимал бы каждый тег в итоговом файле,
@@ -825,11 +814,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
     programme_children_bytes = 0
     output_channel_bytes = 0
     output_programme_bytes = 0
-
-    # Сколько байт экономит подмена длинного id epg.one на короткий c1,c2...
-    # Считаем и для атрибута id= у <channel>, и для атрибута channel= у
-    # каждой <programme>, которая на этот канал ссылается.
-    id_savings_bytes = 0
 
     root_element = None
     closing_tag = None
@@ -915,10 +899,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
                                 raw_channel_tag_bytes[child_tag]["count"] += 1
                                 raw_channel_tag_bytes[child_tag]["bytes"] += child_bytes
 
-                            short_id = f"{SHORT_CHANNEL_ID_PREFIX}{len(short_channel_ids) + 1}"
-                            id_savings_bytes += len(channel_id) - len(short_id)
-                            short_channel_ids[channel_id] = short_id
-                            element.set("id", short_id)
                             removed_channel_logos += remove_unneeded_channel_metadata(element)
 
                             # Финальное содержимое канала (после удаления
@@ -971,10 +951,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
                                 )
                                 kept_programmes += 1
                                 channels_with_kept_programme.add(channel_id)
-
-                                short_channel_id = short_channel_ids[channel_id]
-                                id_savings_bytes += len(channel_id) - len(short_channel_id)
-                                element.set("channel", short_channel_id)
 
                                 # Финальное содержимое передачи (после
                                 # удаления url/icon и обрезки desc) — для
@@ -1051,9 +1027,14 @@ def build_lite_epg(source_path, output_path, reference_channels):
         channel["title"]: (channel.get("group") or "").strip() or "Без категории"
         for channel in reference_channels
     }
+    title_to_number = {
+        channel["title"]: number
+        for number, channel in enumerate(reference_channels, start=1)
+    }
 
     unmatched_reference_titles = sorted(
-        set(reference_titles) - matched_reference_titles
+        set(reference_titles) - matched_reference_titles,
+        key=lambda title: title_to_number.get(title, 0),
     )
     coverage_ratio = (
         len(matched_reference_titles) / len(reference_titles)
@@ -1062,11 +1043,14 @@ def build_lite_epg(source_path, output_path, reference_channels):
     )
 
     channel_ids_without_programmes = kept_channel_ids - channels_with_kept_programme
-    titles_without_programmes = sorted({
-        title
-        for channel_id in channel_ids_without_programmes
-        for title in channel_id_to_titles.get(channel_id, ())
-    })
+    titles_without_programmes = sorted(
+        {
+            title
+            for channel_id in channel_ids_without_programmes
+            for title in channel_id_to_titles.get(channel_id, ())
+        },
+        key=lambda title: title_to_number.get(title, 0),
+    )
 
     # ========================================================
     # РАЗМЕРЫ ИТОГОВОГО ФАЙЛА (считаем заранее — нужны и для печати,
@@ -1158,13 +1142,15 @@ def build_lite_epg(source_path, output_path, reference_channels):
             f"КАНАЛЫ ИЗ {REFERENCE_FILE} БЕЗ СОВПАДЕНИЯ В epg.one:\n"
         )
         for title in unmatched_reference_titles:
-            coverage_file.write(f"  {title} ({title_to_group.get(title, '')})\n")
+            number = title_to_number.get(title, 0)
+            coverage_file.write(f"  {number}. {title} ({title_to_group.get(title, '')})\n")
 
         coverage_file.write(
             "\nПЕРЕНЕСЁННЫЕ КАНАЛЫ БЕЗ ЕДИНОЙ ПЕРЕДАЧИ В ЭТОМ ОКНЕ ДАТ:\n"
         )
         for title in titles_without_programmes:
-            coverage_file.write(f"  {title} ({title_to_group.get(title, '')})\n")
+            number = title_to_number.get(title, 0)
+            coverage_file.write(f"  {number}. {title} ({title_to_group.get(title, '')})\n")
 
         # Размер считаем по НЕтронутому содержимому тега (до удаления
         # url/icon и до обрезки desc) — чтобы было видно, сколько МБ
@@ -1307,13 +1293,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
         coverage_file.write(
             f"  Служебная обвязка (декларация XML, корневой <tv>...</tv>)"
             f"{wrapper_bytes / 1024 / 1024:>7.2f} МБ{pct(wrapper_bytes):>9.1%}\n"
-        )
-        coverage_file.write(
-            "\nЭкономия от сокращения channel-id (c1, c2... вместо длинных "
-            "внутренних id epg.one): файл был бы больше на "
-            f"{id_savings_bytes / 1024 / 1024:.2f} МБ без этой подмены "
-            "(уже учтено в цифрах выше, здесь — просто сколько именно "
-            "она сэкономила).\n"
         )
 
         coverage_file.write("\n\n")
