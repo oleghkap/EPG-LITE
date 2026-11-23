@@ -256,7 +256,7 @@ def remove_unneeded_metadata(element):
 # EPG PROCESSING
 # ============================================================
 
-def trim_epg(source_path, output_path):
+def epg_trim(source_path, output_path):
 
     today = datetime.now(MOSCOW).date()
 
@@ -551,7 +551,7 @@ def main():
         )
 
     try:
-        trim_epg(
+        epg_trim(
             RAW_FILE,
             OUTPUT_FILE,
         )
