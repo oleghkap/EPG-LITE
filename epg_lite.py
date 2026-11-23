@@ -3,11 +3,6 @@
 """
 EPG-EDEM lite.
 
-Полностью независимый скрипт: ничего не читает и не пишет из/в файлы
-clean_epg.py и trim_epg.py (ни channels_test.txt, ни epg_custom.xml.gz,
-ни epg_trimmed.xml.gz), и наоборот — ни один из них не трогает файлы
-этого скрипта. Каждый скрипт может быть удалён независимо от других.
-
 Что делает:
   1. Сам скачивает ваш M3U-плейлист (PLAYLIST_URL) и строит из него
      СОБСТВЕННЫЙ список каналов — channels_lite.txt, формат:
@@ -32,11 +27,11 @@ clean_epg.py и trim_epg.py (ни channels_test.txt, ни epg_custom.xml.gz,
   4. Для оставшихся каналов обрезает программы по датам
      (DAYS_BEFORE/DAYS_AFTER вокруг текущего дня по Москве — сейчас
      3 дня: вчера/сегодня/завтра).
-  5. Удаляет из передач только icon (картинку конкретной передачи),
-     а также логотип канала (<icon> внутри <channel> — свои логотипы и
-     так подтягиваются из плейлиста). url, credits, rating, star-rating,
-     country, date, episode-num сохраняются как есть (url занимает 0 МБ
-     у epg.one — удалять его незачем).
+  5. Удаляет из передач только url и icon (ссылку и картинку конкретной
+     передачи), а также логотип канала (<icon> внутри <channel> — свои
+     логотипы и так подтягиваются из плейлиста). credits, rating,
+     star-rating, country, date, episode-num сохраняются как есть —
+     это общая информация о передаче, которую вы попросили не резать.
   6. Обрезает длину <desc> до MAX_DESC_CHARS (сейчас 400 символов).
   7. Каналы без единой передачи в итоговом окне дат ОСТАЮТСЯ в выводе
      (как есть сейчас у вас с epg.one) — просто отдельно считаются и
@@ -95,6 +90,7 @@ GZIP_LEVEL = 6
 BUFFER_SIZE = 1024 * 1024
 
 REMOVED_PROGRAMME_TAGS = {
+    "url",
     "icon",
 }
 
@@ -753,13 +749,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
     reference_titles = [channel["title"] for channel in reference_channels]
     by_name, by_base_name, by_tvg_id = build_reference_index(reference_channels)
 
-    # len(by_tvg_id) — это число РАЗНЫХ значений tvg-id (если несколько
-    # каналов делят один tvg-id, он считается один раз). Для "сколько
-    # каналов вообще с tvg-id" считаем по самому списку каналов.
-    channels_with_tvg_id = sum(
-        1 for channel in reference_channels if (channel.get("tvg_id") or "").strip()
-    )
-
     today = datetime.now(MOSCOW).date()
 
     first_day = today - timedelta(days=DAYS_BEFORE)
@@ -779,7 +768,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
     print("EPG-EDEM LITE: отбор по каналам + обрезка дат")
     print("=" * 55)
     print(f"Эталонных каналов ({REFERENCE_FILE}): {len(reference_titles)}")
-    print(f"Из них с tvg-id: {channels_with_tvg_id}")
+    print(f"Из них с tvg-id: {len(by_tvg_id)}")
     print(f"Сегодня по Москве: {today}")
     print(f"Начало периода:    {first_day}")
     print(f"Конец периода:     {last_day}")
@@ -812,9 +801,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
     # в наше окно дат и наши каналы (то есть релевантно для итогового файла).
     raw_tag_bytes = defaultdict(lambda: {"count": 0, "bytes": 0})
     raw_channel_tag_bytes = defaultdict(lambda: {"count": 0, "bytes": 0})
-    # Размер тех же тегов ПОСЛЕ удаления/обрезки — чтобы таблица тегов
-    # сходилась с "содержимое тегов" в составе итогового файла (см. ниже).
-    final_tag_bytes = defaultdict(lambda: {"bytes": 0})
 
     # Для полного учёта состава итогового файла: сколько байт реально
     # занимают содержимое тегов (после всех правок) и сколько — служебная
@@ -823,25 +809,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
     programme_children_bytes = 0
     output_channel_bytes = 0
     output_programme_bytes = 0
-
-    # Разбивка "структуры" (всё, что не содержимое тегов) на составные
-    # части: значения атрибутов channel=/start=/stop= у <programme> и
-    # id= у <channel>, отдельно от фиксированного синтаксиса (имена
-    # тегов, кавычки, пробелы) — чтобы ответить, что в структуре вообще
-    # можно сократить, а что нет.
-    programme_channel_attr_bytes = 0
-    programme_start_attr_bytes = 0
-    programme_stop_attr_bytes = 0
-    channel_id_attr_bytes = 0
-
-    # Сырая статистика по каждому channel_id (оригинальный id epg.one)
-    # СРЕДИ НАШИХ каналов — считается независимо от окна дат и валидности
-    # даты, чтобы потом точно сказать, ПОЧЕМУ у канала 0 передач в выводе:
-    # их действительно нет у epg.one вообще, или они есть, но вне окна,
-    # или не распарсилась дата.
-    channel_total_programme_occurrences = defaultdict(int)
-    channel_invalid_date_occurrences = defaultdict(int)
-    channel_out_of_window_occurrences = defaultdict(int)
 
     root_element = None
     closing_tag = None
@@ -913,14 +880,9 @@ def build_lite_epg(source_path, output_path, reference_channels):
                         if matched_titles and channel_id:
                             keep_element = True
                             kept_channel_ids.add(channel_id)
-                            # Накапливаем, а не перезаписываем: у epg.one
-                            # иногда один и тот же channel_id объявлен
-                            # несколько раз подряд, и каждое объявление
-                            # может дать свой набор совпавших названий.
-                            channel_id_to_titles.setdefault(channel_id, set()).update(matched_titles)
+                            channel_id_to_titles[channel_id] = matched_titles
                             matched_reference_titles.update(matched_titles)
                             channels_kept += 1
-                            channel_id_attr_bytes += len(channel_id.encode("utf-8"))
 
                             # Сырые теги канала (включая логотип) — ДО удаления,
                             # для диагностической таблицы по тегам каналов.
@@ -954,13 +916,10 @@ def build_lite_epg(source_path, output_path, reference_channels):
                             removed_unmatched_channel += 1
 
                         else:
-                            channel_total_programme_occurrences[channel_id] += 1
-
                             start, stop = get_programme_times(element)
 
                             if start is None:
                                 invalid_dates += 1
-                                channel_invalid_date_occurrences[channel_id] += 1
                                 keep_element = False
                             else:
                                 keep_element = programme_is_in_window(
@@ -969,17 +928,8 @@ def build_lite_epg(source_path, output_path, reference_channels):
 
                                 if not keep_element:
                                     removed_by_window += 1
-                                    channel_out_of_window_occurrences[channel_id] += 1
 
                             if keep_element:
-                                programme_channel_attr_bytes += len(channel_id.encode("utf-8"))
-                                programme_start_attr_bytes += len(
-                                    element.get("start", "").encode("utf-8")
-                                )
-                                stop_value = element.get("stop")
-                                if stop_value:
-                                    programme_stop_attr_bytes += len(stop_value.encode("utf-8"))
-
                                 for child in element:
                                     child_tag = local_name(child.tag)
                                     child_bytes = len(
@@ -998,16 +948,12 @@ def build_lite_epg(source_path, output_path, reference_channels):
                                 channels_with_kept_programme.add(channel_id)
 
                                 # Финальное содержимое передачи (после
-                                # удаления icon и обрезки desc) — для
-                                # учёта состава итогового файла И для
-                                # сверки с таблицей тегов (по каждому тегу).
-                                for child in element:
-                                    child_tag = local_name(child.tag)
-                                    child_bytes = len(
-                                        ET.tostring(child, encoding="utf-8")
-                                    )
-                                    programme_children_bytes += child_bytes
-                                    final_tag_bytes[child_tag]["bytes"] += child_bytes
+                                # удаления url/icon и обрезки desc) — для
+                                # учёта состава итогового файла.
+                                programme_children_bytes += sum(
+                                    len(ET.tostring(child, encoding="utf-8"))
+                                    for child in element
+                                )
 
                     if keep_element:
                         serialized_element = ET.tostring(
@@ -1092,12 +1038,13 @@ def build_lite_epg(source_path, output_path, reference_channels):
     )
 
     channel_ids_without_programmes = kept_channel_ids - channels_with_kept_programme
-    channel_ids_without_programmes_sorted = sorted(
-        channel_ids_without_programmes,
-        key=lambda cid: min(
-            (title_to_number.get(t, 0) for t in channel_id_to_titles.get(cid, ())),
-            default=0,
-        ),
+    titles_without_programmes = sorted(
+        {
+            title
+            for channel_id in channel_ids_without_programmes
+            for title in channel_id_to_titles.get(channel_id, ())
+        },
+        key=lambda title: title_to_number.get(title, 0),
     )
 
     # ========================================================
@@ -1129,8 +1076,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
         "РЕЗУЛЬТАТ",
         "=" * 55,
         "",
-        f"Эталонных каналов ({REFERENCE_FILE}): {len(reference_titles)}",
-        f"Из них с tvg-id: {channels_with_tvg_id}",
         f"Сегодня по Москве: {today}",
         f"Окно дат: {first_day} — {last_day} "
         f"({total_window_days} календарных дня(дней), "
@@ -1151,7 +1096,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
         f"Удалено (канал не наш):         {removed_unmatched_channel}",
         f"Удалено (вне окна дат):         {removed_by_window}",
         f"Передач с некорректной датой:   {invalid_dates}",
-        f"Удалено тегов icon:             {removed_metadata}",
+        f"Удалено тегов url/icon:         {removed_metadata}",
         f"Обрезано длинных desc:          {truncated_desc_count}",
         "",
         "РАЗМЕРЫ",
@@ -1177,21 +1122,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
     # размером файла) и полный дубль статистики выше.
     # ========================================================
 
-    # "Найдено в epg.one" считает НАЗВАНИЯ из channels_lite.txt (может
-    # быть больше одного на канал epg.one — например, дубликат в другой
-    # группе, или HD/без-HD вариант, для которого epg.one не даёт
-    # отдельного расписания и матчится на тот же канал). "Каналов
-    # перенесено" считает РЕАЛЬНЫЕ <channel>-элементы epg.one. Разница
-    # между ними — это ровно "лишние" совпадения одного канала с
-    # несколькими вашими названиями, не потерянные данные.
-    multi_title_channel_ids = [
-        cid for cid in kept_channel_ids
-        if len(channel_id_to_titles.get(cid, ())) > 1
-    ]
-    extra_titles_from_multi_match = sum(
-        len(channel_id_to_titles[cid]) - 1 for cid in multi_title_channel_ids
-    )
-
     coverage_path = os.path.join(
         output_dir or ".", COVERAGE_FILE
     )
@@ -1204,17 +1134,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
             f"Покрытие:          {coverage_ratio:.1%}\n\n"
             f"Каналов перенесено:        {channels_kept}\n"
             f"  из них без передач:      {len(channel_ids_without_programmes)}\n\n"
-            "Почему «Найдено» и «Перенесено» — разные числа: «Найдено» "
-            "считает названия каналов из channels_lite.txt, «Перенесено» — "
-            "реальные каналы epg.one. Один канал epg.one иногда совпадает "
-            "сразу с несколькими вашими названиями (дубликат в другой "
-            "группе, вариант без отдельного расписания у epg.one и т.п.) — "
-            "это не потеря данных, просто разные единицы измерения.\n"
-            f"Таких «многоцелевых» каналов: {len(multi_title_channel_ids)}, "
-            f"они дают {extra_titles_from_multi_match} лишних совпадений: "
-            f"{channels_kept} + {extra_titles_from_multi_match} = "
-            f"{channels_kept + extra_titles_from_multi_match} "
-            f"(примерно совпадает с «Найдено», если нет других эффектов).\n\n"
             f"КАНАЛЫ ИЗ {REFERENCE_FILE} БЕЗ СОВПАДЕНИЯ В epg.one:\n"
         )
         for title in unmatched_reference_titles:
@@ -1222,30 +1141,11 @@ def build_lite_epg(source_path, output_path, reference_channels):
             coverage_file.write(f"  {number}. {title} ({title_to_group.get(title, '')})\n")
 
         coverage_file.write(
-            "\nПЕРЕНЕСЁННЫЕ КАНАЛЫ БЕЗ ЕДИНОЙ ПЕРЕДАЧИ В ЭТОМ ОКНЕ ДАТ — с "
-            "диагностикой по каждому (сколько передач у этого канала вообще "
-            "есть у epg.one, сколько из них вне нашего окна дат и сколько с "
-            "некорректной/нераспознанной датой — чтобы понять, канал реально "
-            "пустой или просто не совпало окно/формат даты):\n"
+            "\nПЕРЕНЕСЁННЫЕ КАНАЛЫ БЕЗ ЕДИНОЙ ПЕРЕДАЧИ В ЭТОМ ОКНЕ ДАТ:\n"
         )
-        for channel_id in channel_ids_without_programmes_sorted:
-            titles = sorted(
-                channel_id_to_titles.get(channel_id, ()),
-                key=lambda t: title_to_number.get(t, 0),
-            )
-            titles_text = "; ".join(
-                f"{title_to_number.get(t, 0)}. {t} ({title_to_group.get(t, '')})"
-                for t in titles
-            ) or "(название не определено)"
-            total_occ = channel_total_programme_occurrences.get(channel_id, 0)
-            invalid_occ = channel_invalid_date_occurrences.get(channel_id, 0)
-            out_of_window_occ = channel_out_of_window_occurrences.get(channel_id, 0)
-            coverage_file.write(
-                f"  {titles_text}\n"
-                f"      всего передач у epg.one: {total_occ}; "
-                f"вне окна дат: {out_of_window_occ}; "
-                f"с некорректной датой: {invalid_occ}\n"
-            )
+        for title in titles_without_programmes:
+            number = title_to_number.get(title, 0)
+            coverage_file.write(f"  {number}. {title} ({title_to_group.get(title, '')})\n")
 
         # Размер считаем по НЕтронутому содержимому тега (до удаления
         # url/icon и до обрезки desc) — чтобы было видно, сколько МБ
@@ -1265,24 +1165,17 @@ def build_lite_epg(source_path, output_path, reference_channels):
             set(KNOWN_PROGRAMME_TAGS) | set(raw_tag_bytes.keys())
         )
 
-        final_total_tag_bytes = sum(
-            stats["bytes"] for stats in final_tag_bytes.values()
-        ) or 1
-
         coverage_file.write(
-            "\nТЕГИ ПЕРЕДАЧ — РАЗМЕР В МБ, для передач, вошедших в итоговое "
-            "окно дат и каналы (что ещё можно резать, чтобы уменьшить "
-            "итоговый файл). 'всего МБ' — ДО удаления/обрезки (сколько "
-            "занимал бы тег целиком); 'итог МБ' — ПОСЛЕ (что реально попало "
-            "в файл: сумма колонки 'итог МБ' = 'содержимое тегов' в разделе "
-            "«Состав итогового файла» ниже).\n"
-            "'в файле': да — остаётся как есть; обрезан — остаётся, но "
-            "обрезается до MAX_DESC_CHARS; нет — сейчас удаляется целиком "
-            "(REMOVED_PROGRAMME_TAGS); 0 раз — тега нет в вашем фиде epg.one "
-            "вообще, резать нечего.\n"
+            "\nТЕГИ ПЕРЕДАЧ — ПОЛНЫЙ (НЕобрезанный) РАЗМЕР В МБ, "
+            "для передач, вошедших в итоговое окно дат и каналы "
+            "(что ещё можно резать, чтобы уменьшить итоговый файл).\n"
+            "'в файле': да — остаётся как есть; truncated — остаётся, "
+            "но обрезается до MAX_DESC_CHARS; нет — сейчас удаляется "
+            "целиком (REMOVED_PROGRAMME_TAGS); 0 раз — тега нет в "
+            "вашем фиде epg.one вообще, резать нечего.\n"
         )
         coverage_file.write(
-            f"{'тег':<16}{'в файле':>11}{'раз':>8}{'всего МБ':>14}{'итог МБ':>11}{'% объёма':>11}"
+            f"{'тег':<16}{'в файле':>11}{'раз':>8}{'всего МБ':>14}{'% объёма':>11}"
             f"  описание\n"
         )
         for tag_name in sorted(
@@ -1292,7 +1185,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
         ):
             stats = raw_tag_bytes.get(tag_name, {"count": 0, "bytes": 0})
             megabytes = stats["bytes"] / 1024 / 1024
-            final_megabytes = final_tag_bytes.get(tag_name, {"bytes": 0})["bytes"] / 1024 / 1024
             share = stats["bytes"] / total_tag_bytes if stats["bytes"] else 0.0
             description = TAG_DESCRIPTIONS.get(tag_name, "нестандартный тег epg.one")
 
@@ -1305,18 +1197,12 @@ def build_lite_epg(source_path, output_path, reference_channels):
 
             coverage_file.write(
                 f"{tag_name:<16}{in_output:>11}{stats['count']:>8}"
-                f"{megabytes:>12.2f} МБ{final_megabytes:>8.2f} МБ{share:>10.1%}  ({description})\n"
+                f"{megabytes:>12.2f} МБ{share:>10.1%}  ({description})\n"
             )
 
         # --------------------------------------------------
         # То же самое для тегов <channel> (логотип, название, url)
         # --------------------------------------------------
-
-        coverage_file.write(
-            f"Сверка: сумма колонки 'итог МБ' = "
-            f"{final_total_tag_bytes / 1024 / 1024:.2f} МБ — должна совпадать "
-            "с «содержимое тегов» в разделе «Состав итогового файла» ниже.\n"
-        )
 
         total_channel_tag_bytes = sum(
             stats["bytes"] for stats in raw_channel_tag_bytes.values()
@@ -1362,19 +1248,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
         )
         total_size = output_uncompressed_size or 1
 
-        # Сама "структура" — это НЕ одно целое: часть сократима (значения
-        # атрибутов channel=/id=, которые просто повторяют длинный
-        # внутренний id epg.one), часть нет (start=/stop= — нужные
-        # временные метки; фиксированный синтаксис тегов/кавычек — его
-        # нельзя уменьшить без изменения самого формата XMLTV).
-        programme_fixed_syntax_bytes = (
-            programme_structural_bytes
-            - programme_channel_attr_bytes
-            - programme_start_attr_bytes
-            - programme_stop_attr_bytes
-        )
-        channel_fixed_syntax_bytes = channel_structural_bytes - channel_id_attr_bytes
-
         def pct(value):
             return value / total_size
 
@@ -1401,19 +1274,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
             f"{programme_structural_bytes / 1024 / 1024:>7.2f} МБ{pct(programme_structural_bytes):>9.1%}\n"
         )
         coverage_file.write(
-            f"      из них channel= (id канала epg.one, СОКРАТИМО){'':<2}"
-            f"{programme_channel_attr_bytes / 1024 / 1024:>7.2f} МБ{pct(programme_channel_attr_bytes):>9.1%}\n"
-        )
-        coverage_file.write(
-            f"      из них start=/stop= (время, нужно как есть){'':<5}"
-            f"{(programme_start_attr_bytes + programme_stop_attr_bytes) / 1024 / 1024:>7.2f} МБ"
-            f"{pct(programme_start_attr_bytes + programme_stop_attr_bytes):>9.1%}\n"
-        )
-        coverage_file.write(
-            f"      из них фикс. синтаксис тегов/кавычек, не сократить{'':<0}"
-            f"{programme_fixed_syntax_bytes / 1024 / 1024:>6.2f} МБ{pct(programme_fixed_syntax_bytes):>9.1%}\n"
-        )
-        coverage_file.write(
             f"  Каналы (<channel>), всего{'':<20}"
             f"{output_channel_bytes / 1024 / 1024:>10.2f} МБ{pct(output_channel_bytes):>9.1%}\n"
         )
@@ -1424,14 +1284,6 @@ def build_lite_epg(source_path, output_path, reference_channels):
         coverage_file.write(
             f"    структура (<channel>, атрибут id=){'':<15}"
             f"{channel_structural_bytes / 1024 / 1024:>10.2f} МБ{pct(channel_structural_bytes):>9.1%}\n"
-        )
-        coverage_file.write(
-            f"      из них id= (id канала epg.one, СОКРАТИМО){'':<6}"
-            f"{channel_id_attr_bytes / 1024 / 1024:>7.2f} МБ{pct(channel_id_attr_bytes):>9.1%}\n"
-        )
-        coverage_file.write(
-            f"      из них фикс. синтаксис тегов/кавычек, не сократить{'':<0}"
-            f"{channel_fixed_syntax_bytes / 1024 / 1024:>6.2f} МБ{pct(channel_fixed_syntax_bytes):>9.1%}\n"
         )
         coverage_file.write(
             f"  Служебная обвязка (декларация XML, корневой <tv>...</tv>)"
