@@ -90,7 +90,6 @@ GZIP_LEVEL = 6
 BUFFER_SIZE = 1024 * 1024
 
 REMOVED_PROGRAMME_TAGS = {
-    "url",
     "icon",
 }
 
