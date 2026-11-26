@@ -2052,7 +2052,7 @@
 2050 | USA US                                  | 2342                             | Другие Страны 
 2051 | UTravel HD UA                           | 8878                             | Другие Страны 
 2052 | V Sport Football SE                     | 4796                             | Другие Страны 
-2053 | V Sport Premium HD SE                   | v-sport-premium-se               | Другие Страны 
+2053 | V Sport Premium SE                      | 4909                             | Другие Страны 
 2054 | V Sport Ultra HD SE                     | 6586                             | Другие Страны 
 2055 | V2BEAT HD UK                            | 5483                             | Другие Страны 
 2056 | Viasat Explore HD SE                    | 4878                             | Другие Страны 
