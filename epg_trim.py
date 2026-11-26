@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-EPG-EDEM TRIM.
+EPG-LITE TRIM.
 
 Что делает:
   1. Сам скачивает ваш M3U-плейлист (PLAYLIST_URL) и строит из него
@@ -278,7 +278,7 @@ def find_m3u_title_separator(value):
 def download_playlist(url, destination, max_size):
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; EPG-EDEM-TRIM/1.0)"},
+        headers={"User-Agent": "Mozilla/5.0 (compatible; EPG-LITE-TRIM/1.0)"},
     )
 
     with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT) as response:
@@ -546,7 +546,7 @@ def download_file(url, destination):
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "Mozilla/5.0 (compatible; EPG-EDEM-TRIM/1.0)"
+            "User-Agent": "Mozilla/5.0 (compatible; EPG-LITE-TRIM/1.0)"
         },
     )
 
@@ -1307,7 +1307,7 @@ def main():
         )
 
     try:
-        build_trim_epg(RAW_FILE, OUTPUT_FILE, reference_channels)
+        build_lite_epg(RAW_FILE, OUTPUT_FILE, reference_channels)
     finally:
         if os.path.exists(RAW_FILE):
             os.remove(RAW_FILE)
