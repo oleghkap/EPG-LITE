@@ -879,7 +879,11 @@ def build_lite_epg(source_path, output_path, reference_channels):
                         if matched_titles and channel_id:
                             keep_element = True
                             kept_channel_ids.add(channel_id)
-                            channel_id_to_titles[channel_id] = matched_titles
+                            # Накапливаем, а не перезаписываем: у epg.one
+                            # иногда один и тот же channel_id объявлен
+                            # несколько раз подряд, и каждое объявление
+                            # может дать свой набор совпавших названий.
+                            channel_id_to_titles.setdefault(channel_id, set()).update(matched_titles)
                             matched_reference_titles.update(matched_titles)
                             channels_kept += 1
 
