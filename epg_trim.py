@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-EPG-LITE TRIM.
+EPG-LITE trim.
 
 Что делает:
   1. Сам скачивает ваш M3U-плейлист (PLAYLIST_URL) и строит из него
@@ -130,11 +130,12 @@ TAG_DESCRIPTIONS = {
 }
 
 # То же самое, но для тегов внутри <channel> (не <programme>!).
-KNOWN_CHANNEL_TAGS = ["display-name", "icon"]
+KNOWN_CHANNEL_TAGS = ["display-name", "icon", "url"]
 
 CHANNEL_TAG_DESCRIPTIONS = {
     "display-name": "название канала (как в iptvx.one)",
     "icon": "логотип канала",
+    "url": "ссылка на канал/сайт",
 }
 
 
@@ -278,7 +279,7 @@ def find_m3u_title_separator(value):
 def download_playlist(url, destination, max_size):
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; EPG-LITE-TRIM/1.0)"},
+        headers={"User-Agent": "Mozilla/5.0 (compatible; EPG-LITE-trim/1.0)"},
     )
 
     with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT) as response:
@@ -546,7 +547,7 @@ def download_file(url, destination):
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "Mozilla/5.0 (compatible; EPG-LITE-TRIM/1.0)"
+            "User-Agent": "Mozilla/5.0 (compatible; EPG-LITE-trim/1.0)"
         },
     )
 
@@ -1223,7 +1224,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
             stats = raw_channel_tag_bytes.get(tag_name, {"count": 0, "bytes": 0})
             megabytes = stats["bytes"] / 1024 / 1024
             share = stats["bytes"] / total_channel_tag_bytes if stats["bytes"] else 0.0
-            description = CHANNEL_TAG_DESCRIPTIONS.get(tag_name, "нестандартный тег epg.one")
+            description = CHANNEL_TAG_DESCRIPTIONS.get(tag_name, "нестандартный тег iptvx.one")
             in_output = "нет" if tag_name in REMOVED_CHANNEL_TAGS else "да"
 
             coverage_file.write(
