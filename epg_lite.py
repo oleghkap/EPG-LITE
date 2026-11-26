@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-EPG-EDEM lite.
+EPG-LITE lite.
 
 Что делает:
   1. Сам скачивает ваш M3U-плейлист (PLAYLIST_URL) и строит из него
@@ -27,11 +27,10 @@ EPG-EDEM lite.
   4. Для оставшихся каналов обрезает программы по датам
      (DAYS_BEFORE/DAYS_AFTER вокруг текущего дня по Москве — сейчас
      3 дня: вчера/сегодня/завтра).
-  5. Удаляет из передач только url и icon (ссылку и картинку конкретной
+  5. Удаляет из передач только icon (картинку конкретной
      передачи), а также логотип канала (<icon> внутри <channel> — свои
      логотипы и так подтягиваются из плейлиста). credits, rating,
-     star-rating, country, date, episode-num сохраняются как есть —
-     это общая информация о передаче, которую вы попросили не резать.
+     star-rating, country, date, episode-num, url сохраняются как есть.
   6. Обрезает длину <desc> до MAX_DESC_CHARS (сейчас 400 символов).
   7. Каналы без единой передачи в итоговом окне дат ОСТАЮТСЯ в выводе
      (как есть сейчас у вас с epg.one) — просто отдельно считаются и
@@ -73,8 +72,6 @@ DAYS_BEFORE = 1
 DAYS_AFTER = 1
 
 # Обрезка длинных описаний. None — не обрезать.
-# По диагностике clean.py: desc — обычно 70-85% объёма несжатого XML,
-# обрезка до 300-500 символов даёт заметную экономию при небольшой потере текста.
 MAX_DESC_CHARS = 400
 
 # Теги channel-level логотипа (не путать с tvg-id!) — свои логотипы и так
@@ -144,9 +141,7 @@ CHANNEL_TAG_DESCRIPTIONS = {
 
 # ============================================================
 # ПОДБОР ИМЁН КАНАЛОВ
-# (упрощённая версия логики clean_epg.py: без sequence-fingerprint —
-# здесь достаточно решить "наш канал или нет", это не продакшен-маппинг
-# с гарантией единственного правильного ID. tvg-id из channels_lite.txt
+#tvg-id из channels_lite.txt
 # используется как приоритетный способ сопоставления — см. ниже)
 # ============================================================
 
@@ -264,8 +259,7 @@ def local_name(tag):
 # ============================================================
 # СОБСТВЕННЫЙ СПИСОК КАНАЛОВ: channels_lite.txt
 # (№ | CHANNEL | TVG-ID | GRP) — строится и обновляется этим же
-# скриптом из вашего M3U-плейлиста, без обращения к channels_test.txt
-# или к любому другому файлу clean_epg.py/trim_epg.py.
+# скриптом из вашего M3U-плейлиста.
 # ============================================================
 
 def find_m3u_title_separator(value):
@@ -285,7 +279,7 @@ def find_m3u_title_separator(value):
 def download_playlist(url, destination, max_size):
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; EPG-EDEM-lite/1.0)"},
+        headers={"User-Agent": "Mozilla/5.0 (compatible; EPG-LITE-lite/1.0)"},
     )
 
     with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT) as response:
@@ -307,8 +301,7 @@ def download_playlist(url, destination, max_size):
 def parse_m3u_playlist(path):
     """
     Разбирает #EXTINF-записи M3U: название, tvg-id, группа (group-title,
-    либо предшествующий #EXTGRP). Независимая реализация — не делит код
-    с clean_epg.py, чтобы скрипты не зависели друг от друга.
+    либо предшествующий #EXTGRP).
     """
     raw = Path(path).read_bytes()
     try:
@@ -554,7 +547,7 @@ def download_file(url, destination):
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "Mozilla/5.0 (compatible; EPG-EDEM-lite/1.0)"
+            "User-Agent": "Mozilla/5.0 (compatible; EPG-LITE-lite/1.0)"
         },
     )
 
@@ -1151,7 +1144,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
             coverage_file.write(f"  {number}. {title} ({title_to_group.get(title, '')})\n")
 
         # Размер считаем по НЕтронутому содержимому тега (до удаления
-        # url/icon и до обрезки desc) — чтобы было видно, сколько МБ
+        # icon и до обрезки desc) — чтобы было видно, сколько МБ
         # добавил бы каждый тег целиком, если бы его вообще не резали.
         # "% объёма" — доля от суммы всех тегов ниже, не от размера файла:
         # это ориентир, что резать в первую очередь, а не точный бюджет.
