@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 jobs:
-  update-epg:
+  update-epg-lite:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -31,31 +31,31 @@ jobs:
         with:
           python-version: '3.10'
 
-      
-      - name: Run EPG Trim Script
+      - name: Run trim EPG Script
+        env:
+          PLAYLIST_URL: ${{ secrets.PLAYLIST_URL }}
         run: python epg_trim.py
 
-    
-      - name: Commit and Push EPG files
+      - name: Commit and Push Trim EPG files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add epg_trim.xml.gz
+          git add channels_trim.txt epg_trim.xml.gz epg_trim_coverage.txt
 
           if git diff --cached --quiet; then
-            echo "No changes in EPG files."
+            echo "No changes in Trim EPG files."
             exit 0
           fi
 
-          git commit -m "Auto-update EPG files [skip ci]"
+          git commit -m "Auto-update Trim EPG files [skip ci]"
 
           for attempt in 1 2 3; do
             git fetch origin main
             git rebase origin/main
 
             if git push origin HEAD:main; then
-              echo "EPG files successfully pushed."
+              echo "Trim EPG files successfully pushed."
               exit 0
             fi
 
@@ -66,5 +66,5 @@ jobs:
             fi
           done
 
-          echo "Failed to push EPG files after 3 attempts."
+          echo "Failed to push Trim EPG files after 3 attempts."
           exit 1
