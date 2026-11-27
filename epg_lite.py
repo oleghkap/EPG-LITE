@@ -1033,13 +1033,20 @@ def build_lite_epg(source_path, output_path, reference_channels):
         else 0
     )
 
-    channel_ids_without_programmes = kept_channel_ids - channels_with_kept_programme
+    # Канал считаем "без передач" только если НИ ОДИН channel_id источника,
+    # сопоставленный с этим названием, не получил ни одной передачи —
+    # а не по отдельному channel_id. У epg.one один и тот же логический
+    # канал иногда представлен несколькими channel_id (например, "рабочий"
+    # и пустой алиас/дубликат с тем же названием); если смотреть только
+    # по channel_id, такой канал ошибочно попадёт в список, хотя через
+    # другой channel_id у него реально есть расписание.
+    titles_with_any_programme = {
+        title
+        for channel_id in channels_with_kept_programme
+        for title in channel_id_to_titles.get(channel_id, ())
+    }
     titles_without_programmes = sorted(
-        {
-            title
-            for channel_id in channel_ids_without_programmes
-            for title in channel_id_to_titles.get(channel_id, ())
-        },
+        matched_reference_titles - titles_with_any_programme,
         key=lambda title: title_to_number.get(title, 0),
     )
 
@@ -1080,7 +1087,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
         "",
         f"Каналов в источнике:            {xml_channels_seen}",
         f"Каналов оставлено:              {channels_kept}",
-        f"  из них без передач:           {len(channel_ids_without_programmes)}",
+        f"  из них без передач:           {len(titles_without_programmes)}",
         f"Каналов отброшено (не наши):    {channels_dropped}",
         f"Убрано логотипов каналов:       {removed_channel_logos}",
         "",
@@ -1129,7 +1136,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
             f"Не найдено:        {len(unmatched_reference_titles)}\n"
             f"Покрытие:          {coverage_ratio:.1%}\n\n"
             f"Каналов перенесено:        {channels_kept}\n"
-            f"  из них без передач:      {len(channel_ids_without_programmes)}\n\n"
+            f"  из них без передач:      {len(titles_without_programmes)}\n\n"
             f"КАНАЛЫ ИЗ {REFERENCE_FILE} БЕЗ СОВПАДЕНИЯ В epg.one:\n"
         )
         for title in unmatched_reference_titles:
