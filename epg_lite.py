@@ -1073,6 +1073,10 @@ def build_lite_epg(source_path, output_path, reference_channels):
         else None
     )
 
+        # Считаем, сколько перенесённых XML-тегов <channel> из epg.one остались без передач
+    epg_channels_without_programmes = len(kept_channel_ids - channels_with_kept_programme)
+    titles_with_programmes_count = len(matched_reference_titles) - len(titles_without_programmes)
+
     # ========================================================
     # ЕДИНЫЙ ТЕКСТ СТАТИСТИКИ — печатается в консоль воркфлоу И
     # дублируется в epg_lite_coverage.txt, чтобы всё было в одном месте.
@@ -1089,31 +1093,38 @@ def build_lite_epg(source_path, output_path, reference_channels):
         f"DAYS_BEFORE={DAYS_BEFORE}, DAYS_AFTER={DAYS_AFTER})",
         f"Обрезка desc: {MAX_DESC_CHARS if MAX_DESC_CHARS else 'выключена'} символов",
         "",
-        f"Каналов в источнике:            {xml_channels_seen}",
-        f"Каналов оставлено:              {channels_kept}",
-        f"  из них без передач:           {len(titles_without_programmes)}",
-        f"Каналов отброшено (не наши):    {channels_dropped}",
-        f"Убрано логотипов каналов:       {removed_channel_logos}",
+        f"ВАШ ПЛЕЙЛИСТ:",
+        f"  Эталонных каналов:             {len(reference_titles)}",
+        f"  Найдено в epg.one:             {len(matched_reference_titles)} ({coverage_ratio:.1%})",
+        f"    - с телепрограммой:          {titles_with_programmes_count}",
+        f"    - без передач в окне дат:    {len(titles_without_programmes)}",
+        f"  Не найдено в epg.one:          {len(unmatched_reference_titles)}",
         "",
-        f"Покрытие {REFERENCE_FILE}:     {coverage_ratio:.1%} "
-        f"({len(matched_reference_titles)}/{len(reference_titles)})",
+        "УНИКАЛЬНЫЕ ПОТОКИ EPG (теги каналов в XML):",
+        f"  Всего в источнике epg.one:     {xml_channels_seen}",
+        f"  Перенесено в итог. файл:       {channels_kept} (уникальных ID: {len(kept_channel_ids)})",
+        f"    - с передачами:              {len(channels_with_kept_programme)}",
+        f"    - пустых (без передач):      {epg_channels_without_programmes}",
+        f"  Отброшено (не наши):           {channels_dropped}",
+        f"  Убрано логотипов каналов:      {removed_channel_logos}",
         "",
-        f"Всего передач в источнике:      {total_programmes}",
-        f"Передач сохранено:              {kept_programmes}",
-        f"Удалено (канал не наш):         {removed_unmatched_channel}",
-        f"Удалено (вне окна дат):         {removed_by_window}",
-        f"Передач с некорректной датой:   {invalid_dates}",
-        f"Удалено тегов url/icon:         {removed_metadata}",
-        f"Обрезано длинных desc:          {truncated_desc_count}",
+        "ПЕРЕДАЧИ:",
+        f"  Всего в источнике:             {total_programmes}",
+        f"  Сохранено в итог. файл:        {kept_programmes}",
+        f"  Удалено (канал не наш):        {removed_unmatched_channel}",
+        f"  Удалено (вне окна дат):        {removed_by_window}",
+        f"  С некорректной датой:          {invalid_dates}",
+        f"  Удалено тегов icon:            {removed_metadata}",
+        f"  Обрезано длинных desc:         {truncated_desc_count}",
         "",
-        "РАЗМЕРЫ",
-        f"Исходный GZIP:  {source_compressed_size / 1024 / 1024:.2f} МБ",
-        f"Итоговый GZIP:  {output_compressed_size / 1024 / 1024:.2f} МБ",
-        f"Итоговый XML:   {output_uncompressed_size / 1024 / 1024:.2f} МБ",
+        "РАЗМЕРЫ:",
+        f"  Исходный GZIP:  {source_compressed_size / 1024 / 1024:.2f} МБ",
+        f"  Итоговый GZIP:  {output_compressed_size / 1024 / 1024:.2f} МБ",
+        f"  Итоговый XML:   {output_uncompressed_size / 1024 / 1024:.2f} МБ",
     ]
     if reduction is not None:
         report_lines.append(
-            f"Изменение размера относительно исходного GZIP: {reduction:.1f}%"
+            f"  Сжатие относительно исходного GZIP: {reduction:.1f}%"
         )
     report_lines.append("")
     report_lines.append(f"Готово: {output_path}")
@@ -1124,9 +1135,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
         print(line)
 
     # ========================================================
-    # COVERAGE-ФАЙЛ: покрытие каналов, каналы без передач, диагностика
-    # по тегам (в МБ, на весь итоговый объём, чтобы сравнивать с
-    # размером файла) и полный дубль статистики выше.
+    # COVERAGE-ФАЙЛ
     # ========================================================
 
     coverage_path = os.path.join(
@@ -1135,13 +1144,12 @@ def build_lite_epg(source_path, output_path, reference_channels):
     with open(coverage_path, "w", encoding="utf-8") as coverage_file:
         coverage_file.write(
             f"Источник EPG: {EPG_URL}\n\n"
-            f"Эталонных каналов: {len(reference_titles)}\n"
-            f"Найдено в epg.one: {len(matched_reference_titles)}\n"
-            f"Не найдено:        {len(unmatched_reference_titles)}\n"
-            f"Покрытие:          {coverage_ratio:.1%}\n\n"
-            f"Каналов перенесено:        {channels_kept}\n"
-            f"  из них без передач:      {len(titles_without_programmes)}\n\n"
-            f"КАНАЛЫ ИЗ {REFERENCE_FILE} БЕЗ СОВПАДЕНИЯ В epg.one:\n"
+            f"ВАШ ПЛЕЙЛИСТ:\n"
+            f"  Эталонных каналов:             {len(reference_titles)}\n"
+            f"  Найдено в epg.one:             {len(matched_reference_titles)} ({coverage_ratio:.1%})\n"
+            f"    - с телепрограммой:          {titles_with_programmes_count}\n"
+            f"    - без передач в окне дат:    {len(titles_without_programmes)}\n"
+            f"  Не найдено в epg.one:          {len(unmatched_reference_titles)}\n\n"
         )
         for title in unmatched_reference_titles:
             number = title_to_number.get(title, 0)
@@ -1150,13 +1158,8 @@ def build_lite_epg(source_path, output_path, reference_channels):
             coverage_file.write(f"  {number}. {title} ({tvg_id}, {group})\n")
 
         coverage_file.write(
-            "\nПЕРЕНЕСЁННЫЕ КАНАЛЫ БЕЗ ЕДИНОЙ ПЕРЕДАЧИ В ЭТОМ ОКНЕ ДАТ:\n"
+            f"\nКАНАЛЫ ИЗ {REFERENCE_FILE} БЕЗ ЕДИНОЙ ПЕРЕДАЧИ В ЭТОМ ОКНЕ ДАТ ({len(titles_without_programmes)}):\n"
         )
-        for title in titles_without_programmes:
-            number = title_to_number.get(title, 0)
-            tvg_id = title_to_tvg_id.get(title, '')
-            group = title_to_group.get(title, '')
-            coverage_file.write(f"  {number}. {title} ({tvg_id}, {group})\n")
 
         # Размер считаем по НЕтронутому содержимому тега (до удаления
         # icon и до обрезки desc) — чтобы было видно, сколько МБ
