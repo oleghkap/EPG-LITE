@@ -1272,7 +1272,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
         )
         coverage_file.write(
             f"{'Итоговый XML, всего:':<45}"
-            f"           {output_uncompressed_size / 1024 / 1024:>10.2f} МБ{pct(output_uncompressed_size):>9.1%}\n"
+            f"            {output_uncompressed_size / 1024 / 1024:>10.2f} МБ{pct(output_uncompressed_size):>9.1%}\n"
         )
         coverage_file.write(
             f"  Передачи (<programme>), всего:{'':<16}"
@@ -1286,7 +1286,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
         )
         coverage_file.write(
             f"    структура (<programme>, атрибуты start/stop/channel):"
-            f"  {programme_structural_bytes / 1024 / 1024:>7.2f} МБ{pct(programme_structural_bytes):>9.1%}\n"
+            f"   {programme_structural_bytes / 1024 / 1024:>7.2f} МБ{pct(programme_structural_bytes):>9.1%}\n"
         )
         coverage_file.write(
             f"  Каналы (<channel>), всего:{'':<20}"
@@ -1298,7 +1298,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
         )
         coverage_file.write(
             f"    структура (<channel>, атрибут id):{'':<15}"
-            f"   {channel_structural_bytes / 1024 / 1024:>10.2f} МБ{pct(channel_structural_bytes):>9.1%}\n"
+            f"    {channel_structural_bytes / 1024 / 1024:>10.2f} МБ{pct(channel_structural_bytes):>9.1%}\n"
         )
         coverage_file.write(
             f"  Служебная обвязка (декларация XML, корневой <tv>...</tv>):"
