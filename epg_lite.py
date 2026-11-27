@@ -1182,7 +1182,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
         )
       
         coverage_file.write(
-            "\nТЕГИ ПЕРЕДАЧ (в файле: да — остаётся как есть; truncated — остаётся, "
+            "\n\nТЕГИ ПЕРЕДАЧ (в файле: да — остаётся как есть; truncated — остаётся, "
             "но обрезается до MAX_DESC_CHARS; нет — удаляется "
             "целиком (REMOVED_PROGRAMME_TAGS); 0 раз — тега нет в "
             "вашем фиде epg.one вообще, резать нечего):\n"
@@ -1227,7 +1227,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
         )
 
         coverage_file.write(
-            "\n\nТЕГИ КАНАЛОВ (для всех перенесённых "
+            "\nТЕГИ КАНАЛОВ (для всех перенесённых "
             f"{channels_kept} каналов):\n"
         )
         coverage_file.write(
