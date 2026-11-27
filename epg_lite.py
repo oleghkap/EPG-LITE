@@ -1101,7 +1101,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
         f"Всего в источнике epg.one:     {xml_channels_seen}",
         f"Перенесено в итоговый файл:    {channels_kept} (уникальных ID: {len(kept_channel_ids)})",
         f"  - с передачами:              {len(channels_with_kept_programme)}",
-        f"  - пустых (без передач):      {epg_channels_without_programmes}",
+        f"  - пустых (без передач):       {epg_channels_without_programmes}",
         f"Отброшено (не наши):           {channels_dropped}",
         f"Удалено логотипов каналов:     {removed_channel_logos}",
         "",
@@ -1110,9 +1110,9 @@ def build_lite_epg(source_path, output_path, reference_channels):
         f"Сохранено в итоговый файл:     {kept_programmes}",
         f"Удалено (канал не наш):        {removed_unmatched_channel}",
         f"Удалено (вне окна дат):        {removed_by_window}",
-        f"С некорректной датой:          {invalid_dates}",
-        f"Удалено тегов icon:            {removed_metadata}",
-        f"Обрезано длинных desc:         {truncated_desc_count}",
+        f"С некорректной датой:               {invalid_dates}",
+        f"Удалено тегов icon:              {removed_metadata}",
+        f"Обрезано длинных desc:          {truncated_desc_count}",
         "",
         "РАЗМЕРЫ:",
         f"Исходный GZIP:  {source_compressed_size / 1024 / 1024:.2f} МБ",
@@ -1144,8 +1144,8 @@ def build_lite_epg(source_path, output_path, reference_channels):
             f"Эталонных каналов:             {len(reference_titles)}\n"
             f"Найдено в epg.one:             {len(matched_reference_titles)} ({coverage_ratio:.1%})\n"
             f"  - с передачами в окне дат:   {titles_with_programmes_count}\n"
-            f"  - без передач в окне дат:    {len(titles_without_programmes)}\n"
-            f"Не найдено в epg.one:          {len(unmatched_reference_titles)}\n\n"
+            f"  - без передач в окне дат:     {len(titles_without_programmes)}\n"
+            f"Не найдено в epg.one:            {len(unmatched_reference_titles)}\n\n"
             f"КАНАЛЫ ИЗ {REFERENCE_FILE} БЕЗ СОВПАДЕНИЯ В epg.one ({len(unmatched_reference_titles)}):\n"
         )
         for title in unmatched_reference_titles:
@@ -1271,37 +1271,37 @@ def build_lite_epg(source_path, output_path, reference_channels):
             f"{output_uncompressed_size / 1024 / 1024:.2f} МБ несжатого XML):\n"
         )
         coverage_file.write(
-            f"{'Итоговый XML, всего':<45}"
+            f"{'Итоговый XML, всего:':<45}"
             f"           {output_uncompressed_size / 1024 / 1024:>10.2f} МБ{pct(output_uncompressed_size):>9.1%}\n"
         )
         coverage_file.write(
-            f"  Передачи (<programme>), всего{'':<16}"
+            f"  Передачи (<programme>), всего:{'':<16}"
             f"         {output_programme_bytes / 1024 / 1024:>10.2f} МБ{pct(output_programme_bytes):>9.1%}\n"
         )
         coverage_file.write(
-            f"    содержимое тегов (title/desc/category/rating){'':<0}"
+            f"    содержимое тегов (title/desc/category/rating):{'':<0}"
         )
         coverage_file.write(
             f"          {programme_children_bytes / 1024 / 1024:>7.2f} МБ{pct(programme_children_bytes):>9.1%}\n"
         )
         coverage_file.write(
-            f"    структура (<programme>, атрибуты start/stop/channel=)"
+            f"    структура (<programme>, атрибуты start/stop/channel):"
             f"  {programme_structural_bytes / 1024 / 1024:>7.2f} МБ{pct(programme_structural_bytes):>9.1%}\n"
         )
         coverage_file.write(
-            f"  Каналы (<channel>), всего{'':<20}"
+            f"  Каналы (<channel>), всего:{'':<20}"
             f"         {output_channel_bytes / 1024 / 1024:>10.2f} МБ{pct(output_channel_bytes):>9.1%}\n"
         )
         coverage_file.write(
-            f"    содержимое тегов (display-name){'':<17}"
+            f"    содержимое тегов (display-name):{'':<17}"
             f"    {channel_children_bytes / 1024 / 1024:>10.2f} МБ{pct(channel_children_bytes):>9.1%}\n"
         )
         coverage_file.write(
-            f"    структура (<channel>, атрибут id=){'':<15}"
+            f"    структура (<channel>, атрибут id):{'':<15}"
             f"   {channel_structural_bytes / 1024 / 1024:>10.2f} МБ{pct(channel_structural_bytes):>9.1%}\n"
         )
         coverage_file.write(
-            f"  Служебная обвязка (декларация XML, корневой <tv>...</tv>)"
+            f"  Служебная обвязка (декларация XML, корневой <tv>...</tv>):"
             f"{wrapper_bytes / 1024 / 1024:>7.2f} МБ{pct(wrapper_bytes):>9.1%}\n"
         )
 
