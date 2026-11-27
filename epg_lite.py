@@ -1116,7 +1116,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
         "",
         "РАЗМЕРЫ:",
         f"Исходный GZIP:  {source_compressed_size / 1024 / 1024:.2f} МБ",
-        f"Итоговый GZIP:  {output_compressed_size / 1024 / 1024:.2f} МБ",
+        f"Итоговый GZIP:   {output_compressed_size / 1024 / 1024:.2f} МБ",
         f"Итоговый XML:   {output_uncompressed_size / 1024 / 1024:.2f} МБ",
     ]
     if reduction is not None:
