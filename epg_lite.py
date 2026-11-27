@@ -1188,7 +1188,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
             "вашем фиде epg.one вообще, резать нечего):\n"
         )
         coverage_file.write(
-            f"{'тег':<16}{'статус':>10}{'раз':>8}{ 'было МБ':>12}{ 'в файле МБ':>13}{'% объёма':>11}"
+            f"{'тег':<16}{'статус':>10}{'раз':>8}{'было МБ':>13}{'в файле МБ':>14}{'% объёма':>9}"
             f"  описание\n"
         )
         for tag_name in sorted(
@@ -1231,7 +1231,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
             f"{channels_kept} каналов):\n"
         )
         coverage_file.write(
-            f"{'тег':<16}{'статус':>10}{'раз':>8}{ 'было МБ':>12}{ 'в файле МБ':>13}{'% объёма':>11}"
+            f"{'тег':<16}{'статус':>10}{'раз':>8}{'было МБ':>13}{'в файле МБ':>14}{'% объёма':>9}"
             f"  описание\n"
         )
         for tag_name in sorted(
