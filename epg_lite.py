@@ -1145,7 +1145,9 @@ def build_lite_epg(source_path, output_path, reference_channels):
         )
         for title in unmatched_reference_titles:
             number = title_to_number.get(title, 0)
-            coverage_file.write(f"  {number}. {title} ({title_to_group.get(title, '')})\n")
+            tvg_id = title_to_tvg_id.get(title, '')
+            group = title_to_group.get(title, '')
+            coverage_file.write(f"  {number}. {title} ({tvg_id}, {group})\n")
 
         coverage_file.write(
             "\nПЕРЕНЕСЁННЫЕ КАНАЛЫ БЕЗ ЕДИНОЙ ПЕРЕДАЧИ В ЭТОМ ОКНЕ ДАТ:\n"
