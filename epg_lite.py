@@ -792,7 +792,9 @@ def build_lite_epg(source_path, output_path, reference_channels):
     # ДО обрезки desc, но только для передач, которые реально попали
     # в наше окно дат и наши каналы (то есть релевантно для итогового файла).
     raw_tag_bytes = defaultdict(lambda: {"count": 0, "bytes": 0})
+    final_tag_bytes = defaultdict(int)
     raw_channel_tag_bytes = defaultdict(lambda: {"count": 0, "bytes": 0})
+    final_channel_tag_bytes = defaultdict(int)
 
     # Для полного учёта состава итогового файла: сколько байт реально
     # занимают содержимое тегов (после всех правок) и сколько — служебная
@@ -892,12 +894,14 @@ def build_lite_epg(source_path, output_path, reference_channels):
 
                             removed_channel_logos += remove_unneeded_channel_metadata(element)
 
-                            # Финальное содержимое канала (после удаления
-                            # логотипа) — для учёта состава итогового файла.
-                            channel_children_bytes += sum(
-                                len(ET.tostring(child, encoding="utf-8"))
-                                for child in element
-                            )
+                            for child in element:
+                                child_tag = local_name(child.tag)
+                                child_bytes = len(
+                                    ET.tostring(child, encoding="utf-8")
+                                )
+                                final_channel_tag_bytes[child_tag] += child_bytes
+                                channel_children_bytes += child_bytes
+
                         else:
                             keep_element = False
                             channels_dropped += 1
@@ -943,13 +947,13 @@ def build_lite_epg(source_path, output_path, reference_channels):
                                 kept_programmes += 1
                                 channels_with_kept_programme.add(channel_id)
 
-                                # Финальное содержимое передачи (после
-                                # удаления url/icon и обрезки desc) — для
-                                # учёта состава итогового файла.
-                                programme_children_bytes += sum(
-                                    len(ET.tostring(child, encoding="utf-8"))
-                                    for child in element
-                                )
+                                for child in element:
+                                    child_tag = local_name(child.tag)
+                                    child_bytes = len(
+                                        ET.tostring(child, encoding="utf-8")
+                                    )
+                                    final_tag_bytes[child_tag] += child_bytes
+                                    programme_children_bytes += child_bytes
 
                     if keep_element:
                         serialized_element = ET.tostring(
@@ -1093,7 +1097,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
         f"DAYS_BEFORE={DAYS_BEFORE}, DAYS_AFTER={DAYS_AFTER})",
         f"Обрезка desc: {MAX_DESC_CHARS if MAX_DESC_CHARS else 'выключена'} символов",
         "",
-        "УНИКАЛЬНЫЕ ПОТОКИ EPG (теги каналов в XML):",
+        "ПОТОКИ EPG (теги каналов в XML):",
         f"Всего в источнике epg.one:     {xml_channels_seen}",
         f"Перенесено в итоговый файл:    {channels_kept} (уникальных ID: {len(kept_channel_ids)})",
         f"  - с передачами:              {len(channels_with_kept_programme)}",
@@ -1117,7 +1121,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
     ]
     if reduction is not None:
         report_lines.append(
-            f"  Сжатие относительно исходного GZIP: {reduction:.1f}%"
+            f"Сжатие относительно исходного GZIP: {reduction:.1f}%"
         )
     report_lines.append("")
     report_lines.append(f"Готово: {output_path}")
@@ -1151,7 +1155,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
             coverage_file.write(f"  {number}. {title} ({tvg_id}, {group})\n")
 
         coverage_file.write(
-            "\nКАНАЛЫ ИЗ {REFERENCE_FILE} БЕЗ ЕДИНОЙ ПЕРЕДАЧИ В ЭТОМ ОКНЕ ДАТ ({len(titles_without_programmes)}):\n"
+            f"\nКАНАЛЫ ИЗ {REFERENCE_FILE} БЕЗ ЕДИНОЙ ПЕРЕДАЧИ В ЭТОМ ОКНЕ ДАТ ({len(titles_without_programmes)}):\n"
         )
         for title in titles_without_programmes:
             number = title_to_number.get(title, 0)
@@ -1176,18 +1180,15 @@ def build_lite_epg(source_path, output_path, reference_channels):
         all_tag_names = sorted(
             set(KNOWN_PROGRAMME_TAGS) | set(raw_tag_bytes.keys())
         )
-
+      
         coverage_file.write(
-            "\nТЕГИ ПЕРЕДАЧ — ПОЛНЫЙ (НЕобрезанный) РАЗМЕР В МБ, "
-            "для передач, вошедших в итоговое окно дат и каналы "
-            "(что ещё можно резать, чтобы уменьшить итоговый файл).\n"
-            "'в файле': да — остаётся как есть; truncated — остаётся, "
-            "но обрезается до MAX_DESC_CHARS; нет — сейчас удаляется "
+            "\nТЕГИ ПЕРЕДАЧ (в файле: да — остаётся как есть; truncated — остаётся, "
+            "но обрезается до MAX_DESC_CHARS; нет — удаляется "
             "целиком (REMOVED_PROGRAMME_TAGS); 0 раз — тега нет в "
-            "вашем фиде epg.one вообще, резать нечего.\n"
+            "вашем фиде epg.one вообще, резать нечего):\n"
         )
         coverage_file.write(
-            f"{'тег':<16}{'в файле':>11}{'раз':>8}{'всего МБ':>14}{'% объёма':>11}"
+            f"{'тег':<16}{'статус':>10}{'раз':>8}{'было МБ':>12}{'в файле МБ':>13}{'% объёма':>11}"
             f"  описание\n"
         )
         for tag_name in sorted(
@@ -1196,7 +1197,8 @@ def build_lite_epg(source_path, output_path, reference_channels):
             reverse=True,
         ):
             stats = raw_tag_bytes.get(tag_name, {"count": 0, "bytes": 0})
-            megabytes = stats["bytes"] / 1024 / 1024
+            raw_mb = stats["bytes"] / 1024 / 1024
+            final_mb = final_tag_bytes.get(tag_name, 0) / 1024 / 1024
             share = stats["bytes"] / total_tag_bytes if stats["bytes"] else 0.0
             description = TAG_DESCRIPTIONS.get(tag_name, "нестандартный тег epg.one")
 
@@ -1208,8 +1210,8 @@ def build_lite_epg(source_path, output_path, reference_channels):
                 in_output = "да"
 
             coverage_file.write(
-                f"{tag_name:<16}{in_output:>11}{stats['count']:>8}"
-                f"{megabytes:>12.2f} МБ{share:>10.1%}  ({description})\n"
+                f"{tag_name:<16}{in_output:>10}{stats['count']:>8}"
+                f"{raw_mb:>10.2f} МБ{final_mb:>10.2f} МБ{share:>10.1%}  ({description})\n"
             )
 
         # --------------------------------------------------
@@ -1225,11 +1227,11 @@ def build_lite_epg(source_path, output_path, reference_channels):
         )
 
         coverage_file.write(
-            "\n\nТЕГИ КАНАЛОВ — ПОЛНЫЙ РАЗМЕР В МБ (для всех перенесённых "
-            f"{channels_kept} каналов), до удаления логотипа:\n"
+            "\n\nТЕГИ КАНАЛОВ (для всех перенесённых "
+            f"{channels_kept} каналов):\n"
         )
         coverage_file.write(
-            f"{'тег':<16}{'в файле':>11}{'раз':>8}{'всего МБ':>14}{'% объёма':>11}"
+            f"{'тег':<16}{'статус':>10}{'раз':>8}{'было МБ':>12}{'в файле МБ':>13}{'% объёма':>11}"
             f"  описание\n"
         )
         for tag_name in sorted(
@@ -1238,14 +1240,15 @@ def build_lite_epg(source_path, output_path, reference_channels):
             reverse=True,
         ):
             stats = raw_channel_tag_bytes.get(tag_name, {"count": 0, "bytes": 0})
-            megabytes = stats["bytes"] / 1024 / 1024
+            raw_mb = stats["bytes"] / 1024 / 1024
+            final_mb = final_channel_tag_bytes.get(tag_name, 0) / 1024 / 1024
             share = stats["bytes"] / total_channel_tag_bytes if stats["bytes"] else 0.0
             description = CHANNEL_TAG_DESCRIPTIONS.get(tag_name, "нестандартный тег epg.one")
             in_output = "нет" if tag_name in REMOVED_CHANNEL_TAGS else "да"
 
             coverage_file.write(
-                f"{tag_name:<16}{in_output:>11}{stats['count']:>8}"
-                f"{megabytes:>12.2f} МБ{share:>10.1%}  ({description})\n"
+                f"{tag_name:<16}{in_output:>10}{stats['count']:>8}"
+                f"{raw_mb:>10.2f} МБ{final_mb:>10.2f} МБ{share:>10.1%}  ({description})\n"
             )
 
         # --------------------------------------------------
