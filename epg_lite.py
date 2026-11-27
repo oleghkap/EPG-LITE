@@ -141,7 +141,7 @@ CHANNEL_TAG_DESCRIPTIONS = {
 
 # ============================================================
 # ПОДБОР ИМЁН КАНАЛОВ
-#tvg-id из channels_lite.txt
+# tvg-id из channels_lite.txt
 # используется как приоритетный способ сопоставления — см. ниже)
 # ============================================================
 
@@ -757,7 +757,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
 
     print()
     print("=" * 55)
-    print("EPG-EDEM LITE: отбор по каналам + обрезка дат")
+    print("EPG-LITE lite: отбор по каналам + обрезка дат")
     print("=" * 55)
     print(f"Эталонных каналов ({REFERENCE_FILE}): {len(reference_titles)}")
     print(f"Из них с tvg-id: {len(by_tvg_id)}")
