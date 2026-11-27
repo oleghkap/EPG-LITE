@@ -1093,23 +1093,17 @@ def build_lite_epg(source_path, output_path, reference_channels):
         f"DAYS_BEFORE={DAYS_BEFORE}, DAYS_AFTER={DAYS_AFTER})",
         f"Обрезка desc: {MAX_DESC_CHARS if MAX_DESC_CHARS else 'выключена'} символов",
         "",
-        f"Эталонных каналов:             {len(reference_titles)}",
-        f"Найдено в epg.one:             {len(matched_reference_titles)} ({coverage_ratio:.1%})",
-        f"  - с передачами в окне дат:   {titles_with_programmes_count}",
-        f"  - без передач в окне дат:    {len(titles_without_programmes)}",
-        f"Не найдено в epg.one:          {len(unmatched_reference_titles)}",
-        "",
         "УНИКАЛЬНЫЕ ПОТОКИ EPG (теги каналов в XML):",
         f"Всего в источнике epg.one:     {xml_channels_seen}",
-        f"Перенесено в итог. файл:       {channels_kept} (уникальных ID: {len(kept_channel_ids)})",
+        f"Перенесено в итоговый файл:    {channels_kept} (уникальных ID: {len(kept_channel_ids)})",
         f"  - с передачами:              {len(channels_with_kept_programme)}",
         f"  - пустых (без передач):      {epg_channels_without_programmes}",
         f"Отброшено (не наши):           {channels_dropped}",
-        f"Убрано логотипов каналов:      {removed_channel_logos}",
+        f"Удалено логотипов каналов:     {removed_channel_logos}",
         "",
         "ПЕРЕДАЧИ:",
-        f"Всего в источнике:             {total_programmes}",
-        f"Сохранено в итог. файл:        {kept_programmes}",
+        f"Всего в источнике epg.one:     {total_programmes}",
+        f"Сохранено в итоговый файл:     {kept_programmes}",
         f"Удалено (канал не наш):        {removed_unmatched_channel}",
         f"Удалено (вне окна дат):        {removed_by_window}",
         f"С некорректной датой:          {invalid_dates}",
@@ -1148,7 +1142,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
             f"  - с передачами в окне дат:   {titles_with_programmes_count}\n"
             f"  - без передач в окне дат:    {len(titles_without_programmes)}\n"
             f"Не найдено в epg.one:          {len(unmatched_reference_titles)}\n\n"
-            f"КАНАЛЫ ИЗ {REFERENCE_FILE} БЕЗ СОВПАДЕНИЯ В epg.one:\n"
+            f"КАНАЛЫ ИЗ {REFERENCE_FILE} БЕЗ СОВПАДЕНИЯ В epg.one ({len(unmatched_reference_titles)}):\n"
         )
         for title in unmatched_reference_titles:
             number = title_to_number.get(title, 0)
@@ -1157,7 +1151,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
             coverage_file.write(f"  {number}. {title} ({tvg_id}, {group})\n")
 
         coverage_file.write(
-            "\nПЕРЕНЕСЁННЫЕ КАНАЛЫ БЕЗ ЕДИНОЙ ПЕРЕДАЧИ В ЭТОМ ОКНЕ ДАТ:\n"
+            "\nКАНАЛЫ ИЗ {REFERENCE_FILE} БЕЗ ЕДИНОЙ ПЕРЕДАЧИ В ЭТОМ ОКНЕ ДАТ ({len(titles_without_programmes)}):\n"
         )
         for title in titles_without_programmes:
             number = title_to_number.get(title, 0)
