@@ -1272,17 +1272,17 @@ def build_lite_epg(source_path, output_path, reference_channels):
         )
         coverage_file.write(
             f"{'Итоговый XML, всего':<45}"
-            f"          {output_uncompressed_size / 1024 / 1024:>10.2f} МБ{pct(output_uncompressed_size):>9.1%}\n"
+            f"           {output_uncompressed_size / 1024 / 1024:>10.2f} МБ{pct(output_uncompressed_size):>9.1%}\n"
         )
         coverage_file.write(
             f"  Передачи (<programme>), всего{'':<16}"
-            f"          {output_programme_bytes / 1024 / 1024:>10.2f} МБ{pct(output_programme_bytes):>9.1%}\n"
+            f"         {output_programme_bytes / 1024 / 1024:>10.2f} МБ{pct(output_programme_bytes):>9.1%}\n"
         )
         coverage_file.write(
             f"    содержимое тегов (title/desc/category/rating){'':<0}"
         )
         coverage_file.write(
-            f"           {programme_children_bytes / 1024 / 1024:>7.2f} МБ{pct(programme_children_bytes):>9.1%}\n"
+            f"          {programme_children_bytes / 1024 / 1024:>7.2f} МБ{pct(programme_children_bytes):>9.1%}\n"
         )
         coverage_file.write(
             f"    структура (<programme>, атрибуты start/stop/channel=)"
@@ -1290,7 +1290,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
         )
         coverage_file.write(
             f"  Каналы (<channel>), всего{'':<20}"
-            f"           {output_channel_bytes / 1024 / 1024:>10.2f} МБ{pct(output_channel_bytes):>9.1%}\n"
+            f"         {output_channel_bytes / 1024 / 1024:>10.2f} МБ{pct(output_channel_bytes):>9.1%}\n"
         )
         coverage_file.write(
             f"    содержимое тегов (display-name){'':<17}"
