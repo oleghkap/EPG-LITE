@@ -1183,7 +1183,7 @@ def build_lite_epg(source_path, output_path, reference_channels):
       
         coverage_file.write(
             "\n\nТЕГИ ПЕРЕДАЧ (в файле: да — остаётся как есть; truncated — остаётся, "
-            "но обрезается до MAX_DESC_CHARS; нет — удаляется "
+            "но обрезается до MAX_DESC_CHARS;\n"  "нет — удаляется "
             "целиком (REMOVED_PROGRAMME_TAGS); 0 раз — тега нет в "
             "вашем фиде epg.one вообще, резать нечего):\n"
         )
@@ -1272,33 +1272,33 @@ def build_lite_epg(source_path, output_path, reference_channels):
         )
         coverage_file.write(
             f"{'Итоговый XML, всего':<45}"
-            f"{output_uncompressed_size / 1024 / 1024:>10.2f} МБ{pct(output_uncompressed_size):>9.1%}\n"
+            f"          {output_uncompressed_size / 1024 / 1024:>10.2f} МБ{pct(output_uncompressed_size):>9.1%}\n"
         )
         coverage_file.write(
             f"  Передачи (<programme>), всего{'':<16}"
-            f"{output_programme_bytes / 1024 / 1024:>10.2f} МБ{pct(output_programme_bytes):>9.1%}\n"
+            f"          {output_programme_bytes / 1024 / 1024:>10.2f} МБ{pct(output_programme_bytes):>9.1%}\n"
         )
         coverage_file.write(
             f"    содержимое тегов (title/desc/category/rating){'':<0}"
         )
         coverage_file.write(
-            f"{programme_children_bytes / 1024 / 1024:>7.2f} МБ{pct(programme_children_bytes):>9.1%}\n"
+            f"           {programme_children_bytes / 1024 / 1024:>7.2f} МБ{pct(programme_children_bytes):>9.1%}\n"
         )
         coverage_file.write(
             f"    структура (<programme>, атрибуты start/stop/channel=)"
-            f"{programme_structural_bytes / 1024 / 1024:>7.2f} МБ{pct(programme_structural_bytes):>9.1%}\n"
+            f"  {programme_structural_bytes / 1024 / 1024:>7.2f} МБ{pct(programme_structural_bytes):>9.1%}\n"
         )
         coverage_file.write(
             f"  Каналы (<channel>), всего{'':<20}"
-            f"{output_channel_bytes / 1024 / 1024:>10.2f} МБ{pct(output_channel_bytes):>9.1%}\n"
+            f"           {output_channel_bytes / 1024 / 1024:>10.2f} МБ{pct(output_channel_bytes):>9.1%}\n"
         )
         coverage_file.write(
             f"    содержимое тегов (display-name){'':<17}"
-            f"{channel_children_bytes / 1024 / 1024:>10.2f} МБ{pct(channel_children_bytes):>9.1%}\n"
+            f"    {channel_children_bytes / 1024 / 1024:>10.2f} МБ{pct(channel_children_bytes):>9.1%}\n"
         )
         coverage_file.write(
             f"    структура (<channel>, атрибут id=){'':<15}"
-            f"{channel_structural_bytes / 1024 / 1024:>10.2f} МБ{pct(channel_structural_bytes):>9.1%}\n"
+            f"   {channel_structural_bytes / 1024 / 1024:>10.2f} МБ{pct(channel_structural_bytes):>9.1%}\n"
         )
         coverage_file.write(
             f"  Служебная обвязка (декларация XML, корневой <tv>...</tv>)"
