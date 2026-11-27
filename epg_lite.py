@@ -1151,10 +1151,10 @@ def build_lite_epg(source_path, output_path, reference_channels):
             "\nПЕРЕНЕСЁННЫЕ КАНАЛЫ БЕЗ ЕДИНОЙ ПЕРЕДАЧИ В ЭТОМ ОКНЕ ДАТ:\n"
         )
         for title in titles_without_programmes:
-        number = title_to_number.get(title, 0)
-        tvg_id = title_to_tvg_id.get(title, '')
-        group = title_to_group.get(title, '')
-        coverage_file.write(f"  {number}. {title} ({tvg_id}, {group})\n")
+            number = title_to_number.get(title, 0)
+            tvg_id = title_to_tvg_id.get(title, '')
+            group = title_to_group.get(title, '')
+            coverage_file.write(f"  {number}. {title} ({tvg_id}, {group})\n")
 
         # Размер считаем по НЕтронутому содержимому тега (до удаления
         # icon и до обрезки desc) — чтобы было видно, сколько МБ
