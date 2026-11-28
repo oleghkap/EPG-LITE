@@ -19,11 +19,14 @@ EPG-LITE trim.
           прописываете в плейлисте tvg-id именно от iptvx.one — самый
           надёжный способ, используется первым, без эвристик);
        b) точное совпадение названия;
-       c) совпадение по базовому названию без HD/FHD/UHD/4K с учётом
-          страны (без слияния разных регионов/версий).
-     UHD и 4K считаются одним и тем же качеством (QUALITY_EQUIVALENTS) —
-     иначе каналы 4K/UHD часто теряются из-за разной маркировки
-     в плейлисте и в iptvx.one.
+       c) совпадение по базовому названию без HD/FHD/UHD/4K/orig с учётом
+          страны (без слияния разных регионов/версий). Маркер качества
+          НЕ учитывается при сравнении — и у провайдера, и в плейлисте он
+          расставлен непоследовательно (один и тот же канал может быть
+          "orig" в одном месте и "HD" в другом);
+       d) ручные алиасы (MANUAL_ALIASES) для каналов, у которых на
+          iptvx.one совсем другое базовое название (не вариация
+          качества/страны), например Discovery Channel -> Discovery.
   4. Для оставшихся каналов обрезает программы по датам
      (DAYS_BEFORE/DAYS_AFTER вокруг текущего дня по Москве — сейчас
      3 дня: вчера/сегодня/завтра).
@@ -216,8 +219,8 @@ def edge_country_codes(value):
 # В русскоязычных плейлистах/источниках "UHD" и "4K" обозначают одно и то
 # же качество и используются непоследовательно (один и тот же канал может
 # называться по-разному в плейлисте и в epg.one). Приводим их к одному
-# маркеру, иначе такие каналы будут ошибочно сочтены разным качеством
-# и отброшены как несовместимые.
+# маркеру — используется только в quality_markers() для диагностики;
+# сам matching качество больше не учитывает (см. base_names_compatible).
 QUALITY_EQUIVALENTS = {
     "uhd": "4k",
     "ultrahd": "4k",
@@ -235,10 +238,10 @@ def quality_markers(value):
 
 
 def base_names_compatible(source_name, reference_name):
-    """Не объединяем явно разные маркеры качества или разные страны."""
-    if quality_markers(source_name) != quality_markers(reference_name):
-        return False
-
+    """Качество не учитываем (размечается непоследовательно и у
+    провайдера, и в вашем плейлисте: один и тот же канал может быть
+    "orig" в одном месте и "HD" в другом) — объединяем по совпадению
+    базового названия и совместимости по стране."""
     source_countries = edge_country_codes(source_name)
     reference_countries = edge_country_codes(reference_name)
 
@@ -250,6 +253,20 @@ def base_names_compatible(source_name, reference_name):
         return False
 
     return True
+
+
+# Ручные алиасы для каналов, у которых iptvx.one использует совершенно
+# другое базовое название (не просто другой маркер качества/страны) —
+# автоматическое сопоставление по имени тут в принципе не может сработать.
+# Ключ — нормализованное базовое название ровно как оно получается из
+# channels_trim.txt через normalize_base_name(); значение — набор
+# дополнительных нормализованных базовых названий, под которыми тот же
+# канал известен в iptvx.one. Пополняется вручную по мере обнаружения
+# несовпадений в epg_trim_coverage.txt.
+MANUAL_ALIASES = {
+    "discovery channel": {"discovery"},
+    "national geographic wild": {"nat geo wild", "natgeo wild"},
+}
 
 
 def local_name(tag):
@@ -483,6 +500,15 @@ def build_reference_index(channels):
         if base:
             by_base_name.setdefault(base, []).append(title)
 
+            # Ручные алиасы: тот же канал регистрируем ещё и под
+            # дополнительными базовыми названиями из MANUAL_ALIASES,
+            # чтобы его нашли по имени, под которым он известен в
+            # iptvx.one (которое в принципе не сводится к обычной
+            # нормализации — другое базовое слово, а не просто другой
+            # маркер качества/страны).
+            for alias_base in MANUAL_ALIASES.get(base, ()):
+                by_base_name.setdefault(alias_base, []).append(title)
+
         tvg_id = (channel.get("tvg_id") or "").strip()
         if tvg_id:
             by_tvg_id.setdefault(tvg_id.casefold(), []).append(title)
@@ -501,9 +527,11 @@ def match_reference_titles(channel_id, display_names, by_name, by_base_name, by_
          прописываете в плейлисте tvg-id именно от iptvx.one — самый
          надёжный способ, без эвристик).
       2. Точное совпадение нормализованного названия.
-      3. Совпадение по базовому названию (без HD/FHD/UHD/4K) при
-         совместимом качестве и стране (UHD и 4K считаются одним
-         и тем же качеством, см. QUALITY_EQUIVALENTS).
+      3. Совпадение по базовому названию (без HD/FHD/UHD/4K/orig,
+         качество не учитывается) при совместимой стране — включая
+         ручные алиасы из MANUAL_ALIASES (регистрируются в
+         build_reference_index, поэтому работают через тот же
+         by_base_name без отдельной логики здесь).
     """
     if channel_id:
         tvg_matches = by_tvg_id.get(channel_id.strip().casefold())
